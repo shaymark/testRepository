@@ -22,12 +22,24 @@
       #message h1 { font-size: 22px; font-weight: 300; color: rgba(0,0,0,0.6); margin: 0 0 16px;}
       #message p { line-height: 140%; margin: 16px 0 24px; font-size: 14px; }
       #message a { display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
-      #message, #message a { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
+      #message button { font-size: 18px; font-weight: 200;display: block; text-align: center; background: #039be5; text-transform: uppercase; text-decoration: none; color: white; padding: 16px; border-radius: 4px; }
+      #message, #message a, #message button { box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24); }
       #load { color: rgba(0,0,0,0.4); text-align: center; font-size: 13px; }
+      #link { color: rgba(0,0,0,0.4); text-align: center; font-size: 13px; }
       @media (max-width: 600px) {
         body, #message { margin-top: 0; background: white; box-shadow: none; }
         body { border-top: 16px solid #ffa100; }
       }
+      #login-popup {
+        width:160px;
+        height:160;
+        padding:20px;
+        background-color:gray;
+        position:absolute;
+        top:100px;
+        left:100px;
+        display:none;
+    }
     </style>
   </head>
   <body>
@@ -36,29 +48,127 @@
       <h1>Firebase Hosting Setup Complete</h1>
       <p>You're seeing this because you've successfully setup Firebase Hosting. Now it's time to go build something extraordinary!</p>
       <a target="_blank" href="https://firebase.google.com/docs/hosting/">Open Hosting Documentation</a>
+      <p>light status</p>
+      <button id="change-button">change light status</button>
+
     </div>
+
     <p id="load">Firebase SDK Loading&hellip;</p>
+    <p id=link>you can see status in: <a href="https://testdata-8c538.firebaseio.com/light.json">https://testdata-8c538.firebaseio.com/light.json</a></p>
+
+    <div id=user>
+      <p id="connected-user">logged out</p>
+      <button id="login">login with google</button>
+      <button id="login-password">login with password</button>
+      <button id="logout">logout</button>
+    </div>
+
+
+    <div id="login-popup">
+        <div id="login-error-field"></div>
+        <div>Enter email:</div>
+        <input id="login-email-input"/>
+        <div>Enter Password:</div>
+        <input id="login-password-input" type="password"/>
+        <button id="login-password-done">Login</button>
+    </div>
 
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
         // // The Firebase SDK is initialized and available here!
         //
-        // firebase.auth().onAuthStateChanged(user => { });
+         firebase.auth().onAuthStateChanged(user => {
+              if(user != null){
+                document.getElementById("login-popup").style.display = "none";
+                document.getElementById("connected-user").innerHTML = user.email;
+              } else {
+                document.getElementById("connected-user").innerHTML = "logged out";
+              }
+              console.log(`auth changed ${user.email}`);
+          });
         // firebase.database().ref('/path/to/ref').on('value', snapshot => { });
-        // firebase.messaging().requestPermission().then(() => { });
+         //firebase.messaging().requestPermission().then(() => { });
         // firebase.storage().ref('/path/to/ref').getDownloadURL().then(() => { });
         //
         // // 🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥
 
-        try {
-          let app = firebase.app();
-          let features = ['auth', 'database', 'messaging', 'storage'].filter(feature => typeof app[feature] === 'function');
-          document.getElementById('load').innerHTML = `Firebase SDK loaded with ${features.join(', ')}`;
-        } catch (e) {
-          console.error(e);
-          document.getElementById('load').innerHTML = 'Error loading the Firebase SDK, check the console.';
+        // try {
+        //   let app = firebase.app();
+        //   let features = ['auth', 'database', 'messaging', 'storage'].filter(feature => typeof app[feature] === 'function');
+        //   document.getElementById('load').innerHTML = `Firebase SDK loaded with ${features.join(', ')}`;
+        // } catch (e) {
+        //   console.error(e);
+        //   document.getElementById('load').innerHTML = 'Error loading the Firebase SDK, check the console.';
+        // }
+
+        firebase.database().ref('/light').on('value', snapshot => {
+          let isLightOn = snapshot.val().isOn;
+          document.getElementById('load').innerHTML = `is on: ${isLightOn}`;
+        });
+
+        document.getElementById('change-button').onclick = function(){
+          firebase.database().ref('/light').once('value').then( snapshot => {
+
+            let isLightOn = snapshot.val().isOn;
+
+            let light = !isLightOn
+
+            firebase.database().ref('/light').set({
+              isOn : light
+            }, error => {
+              if(error != null){
+                alert(error.message);
+              }
+            });
+
+
+
+          });
+
         }
+
+        document.getElementById('login').onclick = function(){
+          var provider = new firebase.auth.GoogleAuthProvider();
+          provider.addScope('profile');
+          provider.addScope('email');
+          firebase.auth().signInWithPopup(provider);
+        }
+
+        document.getElementById('logout').onclick = function(){
+            firebase.auth().signOut().then(function() {
+              // Sign-out successful.
+            }).catch(function(error) {
+              // An error happened.
+            });
+        }
+
+        document.getElementById('login-password').onclick = function(){
+
+             document.getElementById("login-popup").style.display = "block";
+        }
+
+
+        document.getElementById('login-password-done').onclick = function(){
+
+             let email = document.getElementById("login-email-input").value;
+             let password = document.getElementById("login-password-input").value;
+
+             firebase.auth().signInWithEmailAndPassword(email, password).catch(function(error) {
+             // Handle Errors here.
+               var errorCode = error.code;
+               var errorMessage = error.message;
+
+               document.getElementById('login-error-field').innerHTML = `error: ${errorMessage}`;
+             });
+
+        }
+
+
+
+
+
+
       });
     </script>
   </body>
